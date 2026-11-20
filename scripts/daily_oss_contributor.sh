@@ -300,7 +300,22 @@ fi
 # AGENT EXECUTION (SPAWN UI CONVERSATION OR HEADLESS AGY)
 # ============================================================
 AGENTAPI_BIN="${AGENTAPI_BIN:-$HOME/.gemini/antigravity/bin/agentapi}"
-AGY_BIN="${AGY_BIN:-/Applications/Gemini.app/Contents/Helpers/agy}"
+
+if [ -z "${AGY_BIN:-}" ]; then
+  if command -v agy &>/dev/null; then
+    AGY_BIN="$(command -v agy)"
+  elif [ -x "/Applications/Gemini.app/Contents/Helpers/agy" ]; then
+    AGY_BIN="/Applications/Gemini.app/Contents/Helpers/agy"
+  elif [ -x "/Applications/Antigravity.app/Contents/Helpers/agy" ]; then
+    AGY_BIN="/Applications/Antigravity.app/Contents/Helpers/agy"
+  elif [ -x "$HOME/.local/bin/agy" ]; then
+    AGY_BIN="$HOME/.local/bin/agy"
+  elif [ -x "/usr/local/bin/agy" ]; then
+    AGY_BIN="/usr/local/bin/agy"
+  else
+    AGY_BIN="agy"
+  fi
+fi
 
 # Dynamically discover Antigravity Hub port if app is running and LS address is unset
 if [ -z "${ANTIGRAVITY_LS_ADDRESS:-}" ]; then

@@ -78,16 +78,21 @@ if [[ ":$PATH:" != *":$TARGET_BIN_DIR:"* ]]; then
     echo -e "  ${BOLD}export PATH=\"\$HOME/.local/bin:\$PATH\"${NC}"
 fi
 
-# 7. macOS launchd Plist configuration (optional)
+# 7. Scheduler configuration (macOS launchd / Linux cron & systemd)
 if [[ "$OSTYPE" == "darwin"* ]]; then
     PLIST_NAME="com.user.daily-oss-contributor.plist"
-    PLIST_TEMPLATE="$ROOT_DIR/templates/$PLIST_NAME"
     LAUNCH_AGENTS_DIR="$HOME/Library/LaunchAgents"
 
     echo -e "\n${BLUE}→ macOS detected. Launchd service available in templates/${PLIST_NAME}${NC}"
     echo -e "  To enable scheduled automated runs daily at 22:00:"
     echo -e "    1. sed -e \"s|/REPLACE_WITH_FULL_PATH_TO_REPO|$ROOT_DIR|g\" -e \"s|/REPLACE_WITH_HOME|$HOME|g\" templates/$PLIST_NAME > \"$LAUNCH_AGENTS_DIR/$PLIST_NAME\""
     echo -e "    2. launchctl load -w \"$LAUNCH_AGENTS_DIR/$PLIST_NAME\""
+elif [[ "$OSTYPE" == "linux-gnu"* ]]; then
+    echo -e "\n${BLUE}→ Linux detected.${NC}"
+    echo -e "  To enable scheduled automated runs daily at 22:00:"
+    echo -e "  Option A (cron): Run 'crontab -e' and add the line from templates/crontab.example"
+    echo -e "  Option B (systemd user timer): Copy templates/daily-oss-contributor.* to ~/.config/systemd/user/"
+    echo -e "    systemctl --user enable --now daily-oss-contributor.timer"
 fi
 
 echo -e "\n${BOLD}${GREEN}=== Setup Complete! ===${NC}"

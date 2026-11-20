@@ -94,7 +94,16 @@ Run manually:
 ./scripts/daily_oss_contributor.sh
 ```
 
-Or configure macOS launchd using the provided template in `templates/com.user.daily-oss-contributor.plist`.
+---
+
+## Operating System Compatibility
+
+| OS | Status | Notes |
+|---|---|---|
+| **macOS** | Native (Full Support) | Automatic runner via `launchd` (`templates/com.user.daily-oss-contributor.plist`). |
+| **Linux (Ubuntu, Debian, Fedora, Arch)** | Native (Full Support) | Standard Bash & Python. Schedule via `cron` (`templates/crontab.example`) or `systemd --user` (`templates/daily-oss-contributor.timer`). |
+| **Windows (WSL2 / Ubuntu)** | Native (Full Support) | Recommended for Windows. Run inside WSL2 bash environment. |
+| **Windows (Native CMD / PowerShell)** | Partial | Core Python scripts (`scripts/*.py`) are cross-platform. Automated bash scripts (`daily_oss_contributor.sh`, `install.sh`) require WSL, Git Bash, or MSYS2. |
 
 ---
 

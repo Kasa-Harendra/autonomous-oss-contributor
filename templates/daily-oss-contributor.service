@@ -1,0 +1,14 @@
+[Unit]
+Description=Daily Autonomous OSS Contributor
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+WorkingDirectory=%h/autonomous-oss-contributor
+ExecStart=%h/autonomous-oss-contributor/scripts/daily_oss_contributor.sh
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=default.target

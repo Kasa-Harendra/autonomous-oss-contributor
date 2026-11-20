@@ -1,0 +1,3 @@
+# Run daily at 22:00 (10 PM)
+# Replace /path/to/autonomous-oss-contributor with your repository's full path:
+0 22 * * * cd /path/to/autonomous-oss-contributor && ./scripts/daily_oss_contributor.sh >> /path/to/autonomous-oss-contributor/cron.log 2>&1

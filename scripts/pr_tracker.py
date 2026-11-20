@@ -444,7 +444,14 @@ def cmd_continue(args):
         print("       continue-pr [contribution-no | pr-id | repo] --reject")
         sys.exit(1)
 
-    subprocess.run(["pkill", "-f", "wait_for_approval.py"], capture_output=True)
+    # Safely terminate any active wait_for_approval process
+    try:
+        if os.name == "nt":
+            subprocess.run(["taskkill", "/F", "/FI", "IMAGENAME eq python*", "/FI", "WINDOWTITLE eq *wait_for_approval*"], capture_output=True)
+        else:
+            subprocess.run(["pkill", "-f", "wait_for_approval.py"], capture_output=True)
+    except Exception:
+        pass
 
     target = getattr(args, "target", None)
     pending_file = None
