@@ -1,0 +1,20 @@
+#!/usr/bin/env bash
+# CLI helper to approve or reject a pending autonomous PR
+set -e
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+ROOT_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
+
+if [ -f "$ROOT_DIR/.env" ]; then
+    set -a
+    # shellcheck disable=SC1091
+    source "$ROOT_DIR/.env"
+    set +a
+fi
+
+PYTHON_BIN="python3"
+if [ -x "$ROOT_DIR/.venv/bin/python3" ]; then
+    PYTHON_BIN="$ROOT_DIR/.venv/bin/python3"
+fi
+
+exec "$PYTHON_BIN" "$ROOT_DIR/scripts/pr_tracker.py" continue "$@"

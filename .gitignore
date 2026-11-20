@@ -1,0 +1,43 @@
+# Credentials and Tokens (NEVER COMMIT)
+credentials.json
+token.json
+.env
+*.token
+*.pem
+*.key
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+.venv/
+venv/
+ENV/
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+
+# Operating System
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+Library/Logs/
+
+# Contributor artifacts
+.pending_pr.txt
+.pending_pr_body.md
+.agent_workflow.log
+contributions.json
+CONTRIBUTIONS.md
