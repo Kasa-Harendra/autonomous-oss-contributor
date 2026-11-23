@@ -42,7 +42,11 @@ flowchart TD
    - Dispatches interactive action notifications to your phone via [ntfy.sh](https://ntfy.sh).
    - Allows one-tap `Accept` or `Reject` directly from your device before pushing upstream.
 
-4. **CLI Developer Navigation**:
+4. **Automated PR Policy Verification**:
+   - Verifies `pullRequestCreationPolicy` via GitHub GraphQL before picking any repository.
+   - Automatically rejects repositories configured with `COLLABORATORS_ONLY` restrictions (where maintainers restrict PRs to existing collaborators), ensuring contributions are only attempted on open repositories.
+
+5. **CLI Developer Navigation**:
    - `list-pr`: View all active PRs, reviews, and contribution status.
    - `goto-pr <id>`: Instantly checkout the branch, inspect review comments, and jump to the local directory.
    - `continue-pr <id> --accept`: Approve or resume pending PR actions from the terminal.

@@ -42,14 +42,19 @@ def fetch_events_curl(url):
 def main():
     parser = argparse.ArgumentParser(description="Wait for ntfy approval signal")
     parser.add_argument("--topic", default=DEFAULT_TOPIC, help="ntfy.sh topic to poll")
-    parser.add_argument("--since-epoch", type=int, default=0, help="Unix epoch cutoff: ignore messages before this time")
+    parser.add_argument("--since-epoch", default="0", help="Unix epoch cutoff: ignore messages before this time")
     parser.add_argument("--timeout", type=int, default=7200, help="Maximum seconds to wait (default: 7200)")
     parser.add_argument("--interval", type=int, default=3, help="Polling interval in seconds")
     args = parser.parse_args()
 
     topic = args.topic or DEFAULT_TOPIC
     start_time = time.time()
-    cutoff = args.since_epoch if args.since_epoch > 0 else int(start_time - 900)
+    try:
+        since_val = int(str(args.since_epoch).strip().strip("'\""))
+    except (ValueError, TypeError):
+        since_val = 0
+
+    cutoff = since_val if since_val > 0 else int(start_time - 900)
     ctx = get_ssl_context()
 
     while (time.time() - start_time) < args.timeout:

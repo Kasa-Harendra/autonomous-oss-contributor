@@ -221,7 +221,7 @@ CHECKLIST & EXECUTION PROTOCOL (MANDATORY REQUIREMENT TRACKING)
 You must maintain an explicit checklist of all requirements and verify each item before proceeding:
 [ ] 1. ENVIRONMENT & PATH: Homebrew in PATH, gh auth status verified.
 [ ] 2. REPO EXCLUDE & AUDIT LOG: Initialize timestamped .agent_workflow.log in the cloned repo and add it to .git/info/exclude.
-[ ] 3. DISCOVER ISSUE: Query recognizable repos (stars > 500) for bug/enhancement/docs/help-wanted issues, select one viable task.
+[ ] 3. DISCOVER ISSUE & VERIFY PR POLICY: Query repos (stars > 500) where pullRequestCreationPolicy is ALL (banning COLLABORATORS_ONLY restrictions), select one viable task.
 [ ] 4. CLEAN BRANCH: Create a clean feature branch fix/issue-<number>.
 [ ] 5. IMPLEMENTATION & CODE STYLE: Adhere strictly to CONTRIBUTING.md and style guides.
 [ ] 6. LOCAL TEST VERIFICATION: Run test suite; 0 errors required (self-correct until passing).
@@ -249,6 +249,11 @@ WORKFLOW STEPS
    - Search recognizable open-source repositories (stars > 500) for unassigned issues tagged good first issue, bug, enhancement, documentation, or help wanted:
      gh search issues \"stars:>500\" \"state:open\" \"no:assignee\" \"(\" label:\"good first issue\" OR label:enhancement OR label:documentation OR label:bug OR label:\"help wanted\" \")\" --sort=updated --order=desc --limit=20
    - Prioritize highly recognizable repositories with active maintainers and clear guidelines.
+   - MANDATORY PR POLICY VERIFICATION (BAN COLLABORATORS_ONLY):
+     Before selecting a repository or writing code, check whether outside contributors are allowed to open pull requests:
+     gh api graphql -f query='query { repository(owner:\"<owner>\", name:\"<repo>\") { pullRequestCreationPolicy viewerPermission } }'
+     * If pullRequestCreationPolicy is 'COLLABORATORS_ONLY' (e.g. 'An owner of this repository has limited the ability to open a pull request to users that are collaborators'), DO NOT CHOOSE THIS REPOSITORY! Immediately reject it and pick another one.
+     * You MUST only choose repositories where pullRequestCreationPolicy is 'ALL' (or where viewerPermission is WRITE/ADMIN/MAINTAIN).
    - Select a self-contained, high-quality, viable contribution (bug fix, documentation improvement, unit test addition, or well-scoped enhancement).
    - Inspect issue details: gh issue view <issue-number> --repo <owner/repo>.
 
@@ -319,7 +324,28 @@ fi
 
 # Dynamically discover Antigravity Hub port if app is running and LS address is unset
 if [ -z "${ANTIGRAVITY_LS_ADDRESS:-}" ]; then
-  HUB_PORT=$(ps aux | grep -oE '\-\-hub-port=[0-9]+' | head -n 1 | cut -d= -f2 || true)
+  # 1. Inspect daemon hub json files (most reliable under launchd/background daemons)
+  HUB_PORT=$(python3 -c '
+import glob, json, os
+for f in sorted(glob.glob(os.path.expanduser("~/.gemini/antigravity/daemon/hub_*.json")), key=os.path.getmtime, reverse=True):
+    try:
+        with open(f) as fp:
+            d = json.load(fp)
+        pid = d.get("pid")
+        port = d.get("httpPort")
+        if pid and port:
+            os.kill(pid, 0)
+            print(port)
+            break
+    except Exception:
+        continue
+' 2>/dev/null || true)
+
+  # 2. Fallback to process search
+  if [ -z "$HUB_PORT" ]; then
+    HUB_PORT=$(ps aux | grep -oE '\-\-hub-port=[0-9]+' | head -n 1 | cut -d= -f2 || true)
+  fi
+
   if [ -n "$HUB_PORT" ]; then
     export ANTIGRAVITY_LS_ADDRESS="localhost:$HUB_PORT"
   fi
@@ -379,7 +405,8 @@ if [ -n "$PENDING_FILE" ] && [ -f "$PENDING_FILE" ]; then
   PR_URL=$(grep "^PR_URL=" "$PENDING_FILE" 2>/dev/null | cut -d= -f2- || echo "")
 
   EPOCH=$(grep "^CREATED_AT_EPOCH=" "$PENDING_FILE" 2>/dev/null | cut -d= -f2- || true)
-  if [ -z "$EPOCH" ]; then
+  # Validate that EPOCH is strictly numeric digits; otherwise fall back to file mtime
+  if ! [[ "$EPOCH" =~ ^[0-9]+$ ]]; then
     EPOCH=$(stat -f %m "$PENDING_FILE" 2>/dev/null || date +%s)
   fi
 
