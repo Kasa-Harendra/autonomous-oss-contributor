@@ -3,33 +3,35 @@
 # Daily Autonomous OSS Contributor
 # Runs daily on schedule. Discovers review feedback or picks a new contribution,
 # then launches an interactive conversation directly in the Antigravity Chats
-# side panel under the project "Git Contributions" for human review & approval.
+# side panel under your project for human review & approval.
 # ==============================================================================
 set -euo pipefail
 
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+ROOT_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
+
 # Ensure essential paths are available in non-interactive shell
 export PATH="/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin:$PATH"
-export ANTIGRAVITY_PROJECT_ID="4f8ecd84-35bb-42d6-a825-aefaa6be308f"
 
-CONTRIB_BASE="/Volumes/Disk D/Projects/Others/Git Contributions"
-cd "$CONTRIB_BASE"
-
-if [ -f "/Users/kasaharendra/.gemini/scripts/git_contributions/.env" ]; then
+if [ -f "$ROOT_DIR/.env" ]; then
   # shellcheck disable=SC1091
-  source "/Users/kasaharendra/.gemini/scripts/git_contributions/.env"
+  source "$ROOT_DIR/.env"
 fi
 
-LOG_DIR="$HOME/Library/Logs"
+CONTRIB_BASE="${CONTRIBUTIONS_DIR:-$ROOT_DIR}"
+cd "$CONTRIB_BASE"
+
+LOG_DIR="${LOG_DIR:-$HOME/Library/Logs}"
 mkdir -p "$LOG_DIR"
 EXEC_LOG="$LOG_DIR/daily-oss-contributor.log"
 
 echo "============================================================" >> "$EXEC_LOG"
 echo "[$(date '+%Y-%m-%d %H:%M:%S')] Starting Daily Open-Source Contributor Run" >> "$EXEC_LOG"
 
-# Wait for network connectivity (in case Mac just woke up from sleep)
+# Wait for network connectivity
 NETWORK_OK=0
 for i in {1..12}; do
-  if /opt/homebrew/bin/gh auth status >/dev/null 2>&1; then
+  if gh auth status >/dev/null 2>&1; then
     NETWORK_OK=1
     break
   fi
@@ -41,16 +43,16 @@ if [ "$NETWORK_OK" -eq 0 ]; then
   exit 1
 fi
 
-PYTHON_BIN="/Users/kasaharendra/.gemini/scripts/git_contributions/.venv/bin/python3"
-if [ ! -x "$PYTHON_BIN" ]; then
-  PYTHON_BIN="python3"
+PYTHON_BIN="python3"
+if [ -x "$ROOT_DIR/.venv/bin/python3" ]; then
+  PYTHON_BIN="$ROOT_DIR/.venv/bin/python3"
 fi
 
-AGENTAPI_BIN="$HOME/.gemini/antigravity/bin/agentapi"
-GMAIL_CHECKER="/Users/kasaharendra/.gemini/scripts/git_contributions/gmail_pr_checker.py"
-TRACKER_SCRIPT="/Users/kasaharendra/.gemini/scripts/git_contributions/pr_tracker.py"
+AGENTAPI_BIN="${AGENTAPI_BIN:-$HOME/.gemini/antigravity/bin/agentapi}"
+GMAIL_CHECKER="$SCRIPT_DIR/gmail_pr_checker.py"
+TRACKER_SCRIPT="$SCRIPT_DIR/pr_tracker.py"
 
-find_active_hub_port() {
+find_active_hub() {
   python3 - <<'PY'
 import glob, json, os
 for f in sorted(glob.glob(os.path.expanduser("~/.gemini/antigravity/daemon/hub_*.json")), key=os.path.getmtime, reverse=True):
@@ -59,9 +61,10 @@ for f in sorted(glob.glob(os.path.expanduser("~/.gemini/antigravity/daemon/hub_*
             d = json.load(fp)
         pid = d.get("pid")
         port = d.get("httpPort")
+        csrf = d.get("csrfToken", "")
         if pid and port:
             os.kill(pid, 0)
-            print(port)
+            print(f"{port} {csrf}")
             break
     except Exception:
         continue
@@ -89,7 +92,6 @@ if [ "$FORCE_NEW" -eq 0 ]; then
   set -e
   echo "[$(date '+%Y-%m-%d %H:%M:%S')] Gmail PR Check Code: $CHECK_CODE" >> "$EXEC_LOG"
 
-  # Fallback to tracker script if Gmail checker exited 0 or 20 but tracker detects specific active PR status
   if [ "$CHECK_CODE" -eq 0 ]; then
     set +e
     TRACKER_OUT=$("$PYTHON_BIN" "$TRACKER_SCRIPT" check-active 2>> "$EXEC_LOG")
@@ -109,7 +111,6 @@ TITLE=""
 PROMPT=""
 
 if [ "$FORCE_NEW" -eq 0 ] && [ "$CHECK_CODE" -eq 10 ]; then
-  # CASE B: Maintainer Feedback / Changes Requested -> Address Review!
   parse_field() {
     echo "$CHECK_OUT" | "$PYTHON_BIN" -c "import sys, json, re; m = re.search(r'\{.*\}', sys.stdin.read(), re.DOTALL); print(json.loads(m.group(0)).get('$1', '') if m else '')"
   }
@@ -156,16 +157,15 @@ CHECKLIST & EXECUTION PROTOCOL
 6. ONCE APPROVED BY USER IN CHAT:
    - Push branch to fork: git push origin \"${BRANCH}\"
    - Post review reply comment on PR #${PR_ID} on GitHub explaining the changes.
-   - Update /Volumes/Disk D/Projects/Others/Git Contributions/CONTRIBUTIONS.md and contributions.json."
+   - Update ledger files in ${CONTRIB_BASE}."
 
 else
-  # CASE C: All Previous PRs Merged, Closed, or Awaiting Review -> Discover & Create New PR
   echo "[$(date '+%Y-%m-%d %H:%M:%S')] Proceeding with new open-source contribution for today..." >> "$EXEC_LOG"
 
   TITLE="Daily OSS Contributor - $(date '+%b %d, %Y')"
 
   read -r -d '' PROMPT <<'EOF_PROMPT' || true
-You are the Autonomous Open-Source Contributor Bot with Human-in-the-Loop review. Execute today's daily open-source contribution in the workspace /Volumes/Disk D/Projects/Others/Git Contributions.
+You are the Autonomous Open-Source Contributor Bot with Human-in-the-Loop review. Execute today's daily open-source contribution in the workspace.
 
 ============================================================
 CHECKLIST & EXECUTION PROTOCOL
@@ -197,7 +197,7 @@ You must maintain an explicit checklist of all requirements and verify each item
          * Fork repository if not already forked: gh repo fork --remote=true --clone=false || true
          * Push branch to fork: git push -u origin fix/issue-<number>
          * Open PR: gh pr create --repo <upstream_repo> --head <username>:fix/issue-<number> --title "<clean title>" --body "<body>"
-         * Record in ledger: python3 /Users/kasaharendra/.gemini/scripts/git_contributions/pr_tracker.py track ...
+         * Record in ledger: python3 scripts/pr_tracker.py track ...
 EOF_PROMPT
 
 fi
@@ -205,29 +205,35 @@ fi
 # ============================================================
 # DISCOVER ANTIGRAVITY HUB AND SPAWN SESSION IN UI CHATS
 # ============================================================
-HUB_PORT=$(find_active_hub_port || true)
+HUB_INFO=$(find_active_hub || true)
+HUB_PORT=$(echo "$HUB_INFO" | awk '{print $1}')
+HUB_CSRF=$(echo "$HUB_INFO" | awk '{print $2}')
 
 if [ -z "$HUB_PORT" ]; then
-  HUB_PORT=$(ps aux | grep -oE '\-\-hub-port=[0-9]+' | head -n 1 | cut -d= -f2 || true)
+  echo "[$(date '+%Y-%m-%d %H:%M:%S')] WARNING: Antigravity app is not running. Launching Antigravity..." >> "$EXEC_LOG"
+  open -a "Antigravity" || open -a "Gemini" || true
+  sleep 10
+  HUB_INFO=$(find_active_hub || true)
+  HUB_PORT=$(echo "$HUB_INFO" | awk '{print $1}')
+  HUB_CSRF=$(echo "$HUB_INFO" | awk '{print $2}')
 fi
 
 if [ -n "$HUB_PORT" ]; then
   export ANTIGRAVITY_LS_ADDRESS="localhost:$HUB_PORT"
-  echo "[$(date '+%Y-%m-%d %H:%M:%S')] Antigravity app detected on $ANTIGRAVITY_LS_ADDRESS." >> "$EXEC_LOG"
-else
-  echo "[$(date '+%Y-%m-%d %H:%M:%S')] WARNING: Antigravity app is not running. Launching Antigravity..." >> "$EXEC_LOG"
-  open -a "Antigravity" || open -a "Gemini" || true
-  sleep 10
-  HUB_PORT=$(find_active_hub_port || true)
-  if [ -n "$HUB_PORT" ]; then
-    export ANTIGRAVITY_LS_ADDRESS="localhost:$HUB_PORT"
+  if [ -n "$HUB_CSRF" ]; then
+    export ANTIGRAVITY_CSRF_TOKEN="$HUB_CSRF"
   fi
+  echo "[$(date '+%Y-%m-%d %H:%M:%S')] Antigravity app detected on $ANTIGRAVITY_LS_ADDRESS." >> "$EXEC_LOG"
 fi
 
 if [ -x "$AGENTAPI_BIN" ] && [ -n "${ANTIGRAVITY_LS_ADDRESS:-}" ]; then
   echo "[$(date '+%Y-%m-%d %H:%M:%S')] Spawning interactive conversation in Antigravity Chats: '$TITLE'" >> "$EXEC_LOG"
   cd "$CONTRIB_BASE"
-  ANTIGRAVITY_PROJECT_ID="4f8ecd84-35bb-42d6-a825-aefaa6be308f" "$AGENTAPI_BIN" new-conversation --title="$TITLE" "$PROMPT" >> "$EXEC_LOG" 2>&1
+  PROJECT_ENV=""
+  if [ -n "${ANTIGRAVITY_PROJECT_ID:-}" ]; then
+    PROJECT_ENV="ANTIGRAVITY_PROJECT_ID=${ANTIGRAVITY_PROJECT_ID}"
+  fi
+  env $PROJECT_ENV "$AGENTAPI_BIN" new-conversation --title="$TITLE" "$PROMPT" >> "$EXEC_LOG" 2>&1
   echo "[$(date '+%Y-%m-%d %H:%M:%S')] Conversation successfully spawned in UI Chats panel. Completed Daily Runner." >> "$EXEC_LOG"
 else
   echo "[$(date '+%Y-%m-%d %H:%M:%S')] ERROR: Unable to connect to Antigravity Hub on port '$HUB_PORT'." >> "$EXEC_LOG"
