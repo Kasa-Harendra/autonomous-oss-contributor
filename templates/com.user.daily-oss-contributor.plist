@@ -3,13 +3,13 @@
 <plist version="1.0">
 <dict>
     <key>Label</key>
-    <string>com.kasa.daily-oss-contributor</string>
+    <string>com.user.daily-oss-contributor</string>
     <key>WorkingDirectory</key>
-    <string>/Volumes/Disk D/Projects/Others/Git Contributions</string>
+    <string>/REPLACE_WITH_FULL_PATH_TO_WORKSPACE</string>
     <key>ProgramArguments</key>
     <array>
         <string>/bin/bash</string>
-        <string>/Users/kasaharendra/.gemini/scripts/git_contributions/daily_oss_contributor.sh</string>
+        <string>/REPLACE_WITH_FULL_PATH_TO_REPO/scripts/daily_oss_contributor.sh</string>
     </array>
     <key>StartCalendarInterval</key>
     <dict>
@@ -19,15 +19,15 @@
         <integer>0</integer>
     </dict>
     <key>StandardOutPath</key>
-    <string>/Users/kasaharendra/Library/Logs/daily-oss-contributor-launchd.log</string>
+    <string>/REPLACE_WITH_HOME/Library/Logs/daily-oss-contributor-launchd.log</string>
     <key>StandardErrorPath</key>
-    <string>/Users/kasaharendra/Library/Logs/daily-oss-contributor-launchd.err.log</string>
+    <string>/REPLACE_WITH_HOME/Library/Logs/daily-oss-contributor-launchd.err.log</string>
     <key>EnvironmentVariables</key>
     <dict>
         <key>PATH</key>
         <string>/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin</string>
         <key>ANTIGRAVITY_PROJECT_ID</key>
-        <string>4f8ecd84-35bb-42d6-a825-aefaa6be308f</string>
+        <string>REPLACE_WITH_YOUR_PROJECT_ID</string>
     </dict>
 </dict>
 </plist>
