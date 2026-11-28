@@ -75,7 +75,29 @@ PY
 FORCE_NEW=0
 if [ "${1:-}" = "--force-new" ]; then
   FORCE_NEW=1
-  echo "[$(date '+%Y-%m-%d %H:%M:%S')] --force-new flag provided. Skipping active PR check." >> "$EXEC_LOG"
+  echo "[$(date '+%Y-%m-%d %H:%M:%S')] --force-new flag provided. Skipping active PR and daily limits check." >> "$EXEC_LOG"
+fi
+
+# ============================================================
+# IDEMPOTENCY GUARD: MAX 1 NEW CONTRIBUTION PER CALENDAR DAY
+# ============================================================
+if [ "$FORCE_NEW" -eq 0 ]; then
+  TODAY=$(date '+%Y-%m-%d')
+  ALREADY_CONTRIBUTED=$(python3 -c "
+import json, os
+path = '$CONTRIB_BASE/contributions.json'
+if os.path.exists(path):
+    with open(path) as f:
+        d = json.load(f)
+    today_prs = [p for p in d.get('prs', []) if p.get('session_date') == '$TODAY']
+    if today_prs:
+        print('YES')
+" 2>/dev/null || true)
+
+  if [ "$ALREADY_CONTRIBUTED" = "YES" ]; then
+    echo "[$(date '+%Y-%m-%d %H:%M:%S')] Daily contribution already completed for today ($TODAY). Skipping new contribution run to enforce strictly 1 contribution per day." >> "$EXEC_LOG"
+    exit 0
+  fi
 fi
 
 # ============================================================
